@@ -1,0 +1,41 @@
+```python
+
+import requests
+from bs4 import BeautifulSoup
+from wordpress_xmlrpc import Client, WordPressPost
+from wordpress_xmlrpc.methods.posts import GetPosts, NewPost
+from wordpress_xmlrpc.methods.users import GetUserInfo
+from wordpress_xmlrpc.compat import xmlrpc_client
+from wordpress_xmlrpc.methods import media, posts
+
+page_response = requests.get('https://www.hlas.com.sg/blog')
+page_soup = BeautifulSoup(page_response.text)
+pages = page_soup.select('#dnn_ctr823_ViewEasyDNNNewsMain_ctl00_pnlArticlePager a')
+
+for page_ID in range(1,11):
+    page_url ='https://www.hlas.com.sg/Blog/TabId/200/PgrID/823/PageID/' +  str(page_ID) + '/Default.aspx'                                             
+    links = page_soup.select('body .article .content h1 a')
+
+    for link in links:
+        url = link.get('href')  
+        blog_response = requests.get(url)
+        blog_soup = BeautifulSoup(blog_response.text)
+        blog_date = blog_soup.select('.article-details .date-no-image')[0].text
+        blog_title = blog_soup.select('.article-details h1')[0].text
+        blog_content = blog_soup.select('.EDN_article_content')[0]
+        blog_imgs = blog_content.find_all('img')
+    
+        for blog_img in blog_imgs:
+            blog_img_url = 'https://www.hlas.com.sg' + blog_img.get('src')
+            img_name  = blog_img_url.split(sep='/')[-1]
+            img_response = requests.get(blog_img_url)
+            with open('image/' + img_name, 'wb') as f:
+                f.write(img_response.content)
+        
+            wp = Client('http://hlasdev.com.sg/xmlrpc.php', 'joan.huang@hlas.com.sg', '!a0dmGQA9pm3NNVY')
+            
+            post = WordPressPost()
+            post.title = blog_title
+            post.content = str(blog_content)
+            wp.call(NewPost(post))
+```
